@@ -5,6 +5,14 @@ rootful Podman) using **database mode** (PostgreSQL). Nothing is copied from any
 the full config (9 services, 9 routes, 9 rate-limiting plugins) is created from scratch via
 the Admin API and persisted in Postgres.
 
+> **Used again on 192.168.1.103 (2026-10-30).** See
+> [`rhel-podman/kong-rhel-103-deployment.md`](rhel-podman/kong-rhel-103-deployment.md) for
+> what differed: Step 1 was skipped (SELinux kept enforcing, firewalld kept running, and
+> both work), and `podman-restart.service` was enabled so containers come back after a
+> reboot. After Step 8, config is managed as YAML with decK
+> ([`rhel-podman/deck-yaml-config-rhel.md`](rhel-podman/deck-yaml-config-rhel.md)). Use
+> that instead of the curl calls in *Modifying config*.
+
 ## Overview — what you're building
 
 | Component | Value |

@@ -1,0 +1,212 @@
+# Kong gateway config — THE SOURCE OF TRUTH for 192.168.1.103 (Rocky Linux + Podman).
+#
+# Apply with:   ./kong-config.sh diff     (preview)
+#               ./kong-config.sh apply    (backup live state, then sync)
+#
+# decK makes Kong match this file EXACTLY: anything in Kong that is not in this
+# file (services, routes, plugins, consumers, ...) is DELETED on apply.
+# Don't make changes with curl against the Admin API any more; put them here.
+#
+# Only non-default fields are listed. Kong fills in the rest (read_timeout 60000,
+# retries 5, protocols [http, https], ...). How-to: ../deck-yaml-config-rhel.md
+_format_version: "3.0"
+
+services:
+
+# --- crapi-app: crapi.cropseyit.com -> 192.168.1.101:8888
+- name: crapi-app
+  protocol: http
+  host: 192.168.1.101
+  port: 8888
+  connect_timeout: 60000
+  routes:
+  - name: crapi-root
+    hosts: [crapi.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- crapi-mail: mail.cropseyit.com -> 192.168.1.101:8025
+- name: crapi-mail
+  protocol: http
+  host: 192.168.1.101
+  port: 8025
+  connect_timeout: 60000
+  routes:
+  - name: crapi-mailhog
+    hosts: [mail.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- dvga: dvga.cropseyit.com -> 192.168.1.101:5013
+- name: dvga
+  protocol: http
+  host: 192.168.1.101
+  port: 5013
+  connect_timeout: 60000
+  routes:
+  - name: dvga-root
+    hosts: [dvga.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- jenkins: jenkins.cropseyit.com -> 192.168.1.100:8080
+- name: jenkins
+  protocol: http
+  host: 192.168.1.100
+  port: 8080
+  connect_timeout: 60000
+  routes:
+  - name: jenkins-root
+    hosts: [jenkins.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- juice-nomon: juice-nomon.cropseyit.com -> 192.168.1.99:30300
+- name: juice-nomon
+  protocol: http
+  host: 192.168.1.99
+  port: 30300
+  connect_timeout: 60000
+  routes:
+  - name: juice-nomon-root
+    hosts: [juice-nomon.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- juice-shop: juice.cropseyit.com -> 192.168.1.101:3000
+- name: juice-shop
+  protocol: http
+  host: 192.168.1.101
+  port: 3000
+  connect_timeout: 60000
+  routes:
+  - name: juice-root
+    hosts: [juice.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- k8s: k8s.cropseyit.com -> 192.168.1.75:80
+- name: k8s
+  protocol: http
+  host: 192.168.1.75
+  port: 80
+  connect_timeout: 60000
+  routes:
+  - name: k8s-root
+    hosts: [k8s.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- notes: notes.cropseyit.com -> 192.168.1.98:8000
+- name: notes
+  protocol: http
+  host: 192.168.1.98
+  port: 8000
+  connect_timeout: 60000
+  routes:
+  - name: notes-root
+    hosts: [notes.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false
+
+# --- vampi: vampi.cropseyit.com -> 192.168.1.99:30500
+- name: vampi
+  protocol: http
+  host: 192.168.1.99
+  port: 30500
+  connect_timeout: 60000
+  routes:
+  - name: vampi-root
+    hosts: [vampi.cropseyit.com]
+    paths: [/]
+    strip_path: false
+    preserve_host: true
+  plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 20000
+      policy: local
+      limit_by: ip
+      fault_tolerant: true
+      hide_client_headers: false

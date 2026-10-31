@@ -20,7 +20,7 @@ KONG_YAML=${KONG_YAML:-$HERE/kong.yaml}
 BACKUP_DIR=${BACKUP_DIR:-$HOME/kong-backups}
 DECK=(deck --kong-addr "$KONG_ADDR")
 
-command -v deck >/dev/null || { echo "deck not installed: see ../deck-yaml-config.md" >&2; exit 1; }
+command -v deck >/dev/null || { echo "deck not installed: see the deck-yaml-config doc next to this folder" >&2; exit 1; }
 
 validate() {
   local f=${1:-$KONG_YAML}
