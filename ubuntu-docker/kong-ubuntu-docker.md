@@ -186,6 +186,13 @@ The `kong:3.6` image has its own `kong health` healthcheck.
 Everything goes through the Admin API on port **8001**. Each app takes three calls:
 **service → route → rate-limiting plugin**, in that order.
 
+> **Now managed as YAML.** Since 2026-10-30 this gateway's config lives in
+> [`deck/kong.yaml`](deck/kong.yaml) and is applied with decK. See
+> [`deck-yaml-config.md`](deck-yaml-config.md). On a new install,
+> `cd deck && ./kong-config.sh apply` replaces this whole step. Options A/B below are kept
+> for reference. Anything created that way that isn't in `kong.yaml` is deleted on the next
+> YAML apply.
+
 ### Option A — the script (what was used on .91)
 
 [`configure-kong.sh`](configure-kong.sh) makes all 27 calls from one table of apps. It
@@ -295,7 +302,12 @@ curl -s $ADMIN/plugins  | python3 -m json.tool
 
 # Modifying config
 
-The Admin API calls for services, routes and plugins (create / `PATCH` / `DELETE`) are the
+**Use the YAML workflow: edit [`deck/kong.yaml`](deck/kong.yaml), then
+`./kong-config.sh diff` / `apply`.** [`deck-yaml-config.md`](deck-yaml-config.md) has the
+cookbook (new apps, routes, plugins, consumers, load balancing, rollback). Changes made
+directly with curl get undone by the next apply.
+
+For reference, the raw Admin API calls for services, routes and plugins (create / `PATCH` / `DELETE`) are the
 same on any host. See *Modifying config* in [`../kong.md`](../kong.md#modifying-config).
 Changes are saved in Postgres and picked up live. Most of them need **no restart**, but
 allow the ~5 s router rebuild described in Step 9.

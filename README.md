@@ -8,7 +8,10 @@ which targets Rocky Linux (RHEL-family) with rootful Podman. This repo adds an
 |---|---|---|
 | [`ubuntu-docker/kong-ubuntu-docker.md`](ubuntu-docker/kong-ubuntu-docker.md) | Ubuntu 24.04 + Docker | Kong 3.6 + Postgres 16, 9 services/routes/rate limits, ops |
 | [`ubuntu-docker/noname-kong-install-ubuntu-docker.md`](ubuntu-docker/noname-kong-install-ubuntu-docker.md) | Ubuntu 24.04 + Docker | Noname `nonamesecurity` v5.0.1 plugin on that gateway |
-| [`ubuntu-docker/configure-kong.sh`](ubuntu-docker/configure-kong.sh) | any | Creates the 9 services + routes + rate limits via the Admin API |
+| [`ubuntu-docker/deck-yaml-config.md`](ubuntu-docker/deck-yaml-config.md) | any | **How to change config:** `kong.yaml` is the source of truth, applied with decK. Cookbook for services/routes/plugins/consumers |
+| [`ubuntu-docker/deck/kong.yaml`](ubuntu-docker/deck/kong.yaml) | any | the gateway's config (9 services / routes / rate limits) |
+| [`ubuntu-docker/deck/kong-config.sh`](ubuntu-docker/deck/kong-config.sh) | any | `validate` / `diff` / `apply` / `backup` / `restore` wrapper around decK |
+| [`ubuntu-docker/configure-kong.sh`](ubuntu-docker/configure-kong.sh) | any | Original curl-based setup (now replaced by `kong-config.sh apply`) |
 | [`kong.md`](kong.md) | Rocky Linux + Podman | original base-gateway guide (192.168.1.104) |
 | [`noname_kong_install.md`](noname_kong_install.md) | Rocky Linux + Podman | original Noname plugin guide (192.168.1.104) |
 
@@ -21,6 +24,7 @@ on 2026-10-30:
 - Kong 3.6.1, DB reachable, 9 services / 9 routes / 9 rate-limiting plugins
 - every route answers through the proxy (jenkins answers 403, which is Jenkins' own anonymous-access response)
 - config survives `docker restart kong`
+- config managed as YAML with decK v1.69.0 (`deck/kong.yaml`, 0 drift after setup)
 - Noname plugin: **not installed yet**, waiting on the integration-profile Lua files
 
 The main differences from RHEL/Podman (Docker instead of Podman, no SELinux/firewalld,

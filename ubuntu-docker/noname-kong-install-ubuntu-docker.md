@@ -137,7 +137,20 @@ there after Step 4. Before Step 4, check `available_on_server`.
 
 ---
 
-## Step 4 — Register the plugin instance (Admin API)
+## Step 4 — Register the plugin instance
+
+> **This gateway is YAML-managed** ([`deck-yaml-config.md`](deck-yaml-config.md)). Instead
+> of the curl calls below, add
+> ```yaml
+> plugins:
+> - name: nonamesecurity
+> ```
+> at the top level of [`deck/kong.yaml`](deck/kong.yaml) (or under one service's
+> `plugins:`), then run `./kong-config.sh apply`. If you create it with curl, the next YAML
+> apply deletes it. Rollback = remove the entry and apply, *before* recreating the
+> container without the plugin.
+
+Plain Admin API version (no decK):
 
 The instance lives in Postgres. The body has no config: tuning lives in `schema.lua` and the
 API Security UI.
