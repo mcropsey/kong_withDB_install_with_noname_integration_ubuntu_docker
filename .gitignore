@@ -1,0 +1,6 @@
+# Noname plugin files carry the integration source key (schema.lua) — never commit them
+nonamesecurity/
+noname-security-kong-policy/
+*.zip
+# local secrets
+.kong-db-password
