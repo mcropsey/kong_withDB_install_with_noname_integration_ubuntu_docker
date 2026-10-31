@@ -20,7 +20,9 @@ with the same 9 services / 9 routes / 9 rate limits. Each gateway has **its own
 `kong.yaml`**, so a change applied on one does not touch the others.
 
 **Noname runs on .100 only.** It uses Noname's **custom-image** method: Kong runs from
-`kong-noname:3.6-5.0.1` ([`noname-image/Dockerfile`](noname-image/Dockerfile)), and the
+`kong-noname:3.6-5.0.1-src4` ([`noname-image/Dockerfile`](noname-image/Dockerfile)) with
+`KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (required, or no traffic reaches Noname: see
+[`rhel-podman/kong-rhel-100.md`](rhel-podman/kong-rhel-100.md#fix-later-on-2026-10-30-no-traffic-reaching-noname)), and the
 plugin is turned on by `- name: nonamesecurity` in `deck-100/kong.yaml`. .91 and .103 run
 the stock `kong:3.6` image without Noname.
 

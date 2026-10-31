@@ -18,7 +18,7 @@ touched.
 
 | | Before | After |
 |---|---|---|
-| Kong image | `docker.io/library/kong:3.6` | **`localhost/kong-noname:3.6-5.0.1`** (built from `kong:3.6` + plugin v5.0.1) |
+| Kong image | `docker.io/library/kong:3.6` | **`localhost/kong-noname:3.6-5.0.1`** (built from `kong:3.6` + plugin v5.0.1); since the fix below, **`3.6-5.0.1-src4`** |
 | Plugin code | bind mount `/opt/kong/plugins/nonamesecurity` → container (`:ro`) | **inside the image**, no mounts |
 | `KONG_PLUGINS` | `bundled,nonamesecurity` | same |
 | Config changes | curl against the Admin API | **edit `deck-100/kong.yaml` → `./kong-config.sh apply`** |
@@ -56,6 +56,32 @@ Noname engine is reachable from the host (200). decK diff 0 before and after a
 
 > Check the **API Security UI** (Settings > Integrations) to confirm that .100's traffic is
 > still arriving after the switch.
+
+### Fix later on 2026-10-30: no traffic reaching Noname
+
+**Symptom:** Kong proxied normally and `nonamesecurity` was enabled, but nothing showed in the
+API Security UI. Nothing was logged either (debug off).
+
+**Cause:** the `kong` container had no `KONG_LUA_SSL_TRUSTED_CERTIFICATE`, so Kong had no CA
+bundle for Lua TLS. The plugin verifies the engine's certificate (`NN_SSL_VERIFY = true`), and
+every batch failed with `20: unable to get local issuer certificate`. This was true **before**
+the image switch too (the mount-based container had the same env). Network, DNS and the
+engine's certificate (Amazon RSA 2048 M04, all three IPs) were fine.
+
+**Fix:**
+
+1. New integration profile downloaded to `~/noname-security-kong-policy/` (source index
+   3 → **4**, new source key, same v5.0.1). The old plugin folder was moved to
+   `~/kong-backups/nonamesecurity-src3-<timestamp>`.
+2. Built `kong-noname:3.6-5.0.1-src4`. `kong-noname:3.6-5.0.1` (old profile) is kept.
+3. Deleted the old `nonamesecurity` instance (it still held index 3 / the old key in Postgres).
+4. Re-created `kong` from `-src4` with `-e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (now built
+   into [`kong-recreate-podman.sh`](kong-recreate-podman.sh)).
+5. Registered the instance again (index 4, new key). `./kong-config.sh diff` = 0 / 0 / 0.
+
+**Verified:** `enabled_in_cluster` = `rate-limiting, nonamesecurity`. A Lua request to the
+engine using Kong's CA store returns **200** (it failed before). Proxy 200s with rate-limit
+headers. crAPI traffic is flowing, with 0 `[error]`/`[crit]` lines.
 
 ---
 
@@ -108,9 +134,15 @@ sudo podman exec kong grep NN_VERSION /usr/local/share/lua/5.1/kong/plugins/nona
 cd ~/kong_withDB_install_with_noname_integration_ubuntu_docker/rhel-podman/deck-100 && ./kong-config.sh diff   # 0 / 0 / 0
 ```
 
+**New integration profile** (not just a new version): the instance in Postgres keeps the old
+`NN_SOURCE_INDEX`/`NN_SOURCE_KEY`. After step 3, `curl -s -X DELETE localhost:8001/plugins/<id>`
+for the `nonamesecurity` instance, then `./kong-config.sh apply` to create it again with the
+new values. Details in the Ubuntu guide's *Updating* section.
+
 [`kong-recreate-podman.sh`](kong-recreate-podman.sh) reads the DB password from
 `/opt/kong/kong-db-password`, recreates `kong` with the same ports/env and
-`KONG_PLUGINS=bundled,nonamesecurity`, and waits up to 60 s for the Admin API. If it
+`KONG_PLUGINS=bundled,nonamesecurity` and `KONG_LUA_SSL_TRUSTED_CERTIFICATE=system`, and
+waits up to 60 s for the Admin API. If it
 doesn't come up, it prints the log and **puts the previous container back** (image,
 plugins and mounts). Tested on .103: a deliberately broken switch rolled back by itself in
 about 70 s, and a normal switch took about 10 s.
@@ -130,7 +162,8 @@ about 70 s, and a normal switch took about 10 s.
 |---|---|
 | `~/kong-noname-build/` | image build folder: Dockerfile + plugin files (**source key**, mode 700) |
 | `/opt/kong/plugins/nonamesecurity/` | the old mount source. No longer used by the container, kept for rollback |
-| `~/noname-security-kong-policy/` | the unzipped vendor download (v5.0.1 + old v4.0.0 rock) |
+| `~/noname-security-kong-policy/` | the unzipped vendor download: current profile (source index 4), v5.0.1 |
+| `~/kong-backups/nonamesecurity-src3-*` | the previous profile's plugin folder (**source key**) |
 | `/opt/kong/kong-db-password` | Postgres password (root, 600) |
 | `~/kong-backups/` | decK dumps, one before every apply (**contain the source key**) |
 | `~/kong_withDB_install_with_noname_integration/` | old clone of the original repo, not used |

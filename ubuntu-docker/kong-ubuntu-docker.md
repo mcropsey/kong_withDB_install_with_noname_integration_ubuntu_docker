@@ -20,7 +20,7 @@ and stored in Postgres.
 | Verify DNS | `podman network inspect kongnet \| grep dns_enabled` | `docker exec kong getent hosts kong-db` (Step 7) |
 | Start on boot | needs `podman-restart.service` for `--restart` to apply after a reboot | `dockerd` is enabled by default and restarts `unless-stopped` containers by itself |
 | Image names | `docker.io/library/kong:3.6` | `kong:3.6` (Docker Hub is the default registry) |
-| Read env / password | `podman inspect --format '{{.Config.Env}}' \| tr ',' '\n'` | `docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}'` |
+| Read env / password | `podman inspect --format '{{range .Config.Env}}{{println .}}{{end}}'` (plain `{{.Config.Env}}` is space-separated, so `tr ','` doesn't split it) | `docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}'` |
 | DB password | `PW=$(openssl rand ...)` in your shell only | also saved to `~/.kong-db-password` (mode 600) so later steps and other shells can reuse it |
 | Config creation | 27 hand-typed `curl` calls | the same calls, or `./configure-kong.sh`, which does all 27 and stops on the first error |
 

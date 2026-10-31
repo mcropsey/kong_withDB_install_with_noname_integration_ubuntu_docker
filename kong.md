@@ -91,7 +91,8 @@ sudo podman logs kong-db   # wait for "database system is ready to accept connec
 ```
 
 > Recover the password any time with:
-> `sudo podman inspect kong-db --format '{{.Config.Env}}' | tr ',' '\n' | grep POSTGRES_PASSWORD`
+> `sudo podman inspect kong-db --format '{{json .Config.Env}}' | tr ',' '\n' | grep POSTGRES_PASSWORD`
+> (the `json` form matters: plain `{{.Config.Env}}` is space-separated, so `tr ','` doesn't split it.)
 > (or from the `KONG_PG_PASSWORD` env on the `kong` container once it exists.)
 
 ## Step 5 — Bootstrap the database (migrations)
@@ -383,7 +384,7 @@ curl -s -X POST http://localhost:8001/plugins \
 sudo podman run --rm --network kongnet \
   -e KONG_DATABASE=postgres -e KONG_PG_HOST=kong-db \
   -e KONG_PG_USER=kong \
-  -e KONG_PG_PASSWORD="$(sudo podman inspect kong --format '{{.Config.Env}}' | tr ',' '\n' | grep KONG_PG_PASSWORD | tr -d ' \"' | cut -d= -f2)" \
+  -e KONG_PG_PASSWORD="$(sudo podman inspect kong --format '{{json .Config.Env}}' | python3 -c 'import json,sys; print([e.split("=",1)[1] for e in json.load(sys.stdin) if e.startswith("KONG_PG_PASSWORD=")][0])')" \
   -e KONG_PG_DATABASE=kong \
   docker.io/library/kong:<new-tag> kong migrations up
 ```

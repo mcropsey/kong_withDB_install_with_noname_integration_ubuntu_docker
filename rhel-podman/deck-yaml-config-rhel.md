@@ -90,7 +90,7 @@ ubuntu-1..3.
 |---|---|
 | Container commands in the docs | `docker …` in the Ubuntu doc → `sudo podman …` here (e.g. `sudo podman logs kong`) |
 | SELinux | Enforcing, nothing needed for decK, or for the Noname image (no bind mount) |
-| Custom plugins (e.g. Noname) | code = a **custom image** built with `sudo podman build --format docker` from [`../noname-image/Dockerfile`](../noname-image/Dockerfile), run with `KONG_PLUGINS=bundled,nonamesecurity`. Instance = a `- name: nonamesecurity` entry in `kong.yaml` (not curl). Full steps: [`noname-kong-install-rhel.md`](noname-kong-install-rhel.md) |
+| Custom plugins (e.g. Noname) | code = a **custom image** built with `sudo podman build --format docker` from [`../noname-image/Dockerfile`](../noname-image/Dockerfile), run with `KONG_PLUGINS=bundled,nonamesecurity` **and `KONG_LUA_SSL_TRUSTED_CERTIFICATE=system`** (or the plugin can't reach the engine). Instance = a `- name: nonamesecurity` entry in `kong.yaml` (not curl). Full steps: [`noname-kong-install-rhel.md`](noname-kong-install-rhel.md) |
 | Restart after reboot | needs `podman-restart.service` enabled (done on .103) |
 | Admin API exposure | published by Podman/netavark, so **firewalld doesn't filter it**. Bind to `127.0.0.1:8001` if needed |
 | Secrets | the repo is public. Use `${{ env "DECK_NAME" }}` in the YAML, never literal keys. Backups in `~/kong-backups` can contain secrets and stay on the host |

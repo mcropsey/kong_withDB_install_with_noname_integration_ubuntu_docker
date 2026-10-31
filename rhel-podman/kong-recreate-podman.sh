@@ -10,6 +10,9 @@
 # Env overrides:
 #   PW_FILE   DB password file (default /opt/kong/kong-db-password if it exists, else ~/.kong-db-password)
 #   PLUGINS   KONG_PLUGINS value (default bundled,nonamesecurity)
+#
+# Always sets KONG_LUA_SSL_TRUSTED_CERTIFICATE=system: without it Kong has no CA bundle for Lua TLS,
+# and the Noname plugin (NN_SSL_VERIFY=true) silently fails to send anything to the engine.
 set -euo pipefail
 
 NEW=${1:?usage: $0 <image>}
@@ -34,6 +37,7 @@ run_kong() {  # run_kong <image> <plugins> [extra args...]
     -e KONG_DATABASE=postgres -e KONG_PG_HOST=kong-db -e KONG_PG_USER=kong \
     -e KONG_PG_PASSWORD="$PW" -e KONG_PG_DATABASE=kong \
     -e KONG_PROXY_LISTEN=0.0.0.0:8000 -e KONG_ADMIN_LISTEN=0.0.0.0:8001 \
+    -e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system \
     -e KONG_PLUGINS="$plugins" "$@" "$img" >/dev/null
 }
 

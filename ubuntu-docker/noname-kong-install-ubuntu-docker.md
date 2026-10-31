@@ -43,6 +43,8 @@ no relabeling is needed.
   **403**. For inspection only, set it to `false` in `schema.lua` **before building**.
 - **Priority 2501**: runs before `rate-limiting` (910). A block is a Noname 403, not a
   Kong 429.
+- **TLS to the engine is verified** (`NN_SSL_VERIFY = true`) against Kong's Lua CA store,
+  which is empty unless the container sets `KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (Step 3).
 - Payloads over **1 MB** (`NN_MAX_PAYLOAD_SIZE`) aren't fully inspected. Errors fail
   open and log `[NONAME] Critical error … failing open`.
 - The full `schema.lua` field list is under *Configuration reference* in
@@ -144,11 +146,21 @@ docker run -d --name kong --network kongnet --restart unless-stopped \
   -e KONG_PROXY_LISTEN=0.0.0.0:8000 \
   -e KONG_ADMIN_LISTEN=0.0.0.0:8001 \
   -e KONG_PLUGINS=bundled,nonamesecurity \
+  -e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system \
   kong-noname:3.6-5.0.1
 ```
 
-Compared with base-guide Step 6, there are two changes: the `KONG_PLUGINS` line, and the
-image name. There's no `-v` mount. **Keep `bundled`** in `KONG_PLUGINS`, or
+Compared with base-guide Step 6, there are three changes: the `KONG_PLUGINS` line, the
+`KONG_LUA_SSL_TRUSTED_CERTIFICATE` line, and the image name. There's no `-v` mount.
+
+**`KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` is required.** Kong has **no** CA bundle for
+Lua-side TLS by default, and the plugin verifies the engine's certificate
+(`NN_SSL_VERIFY = true`). Without this line every batch fails with
+`20: unable to get local issuer certificate` and is dropped **silently** (debug is off by
+default): Kong proxies fine, `nonamesecurity` shows as enabled, and **nothing ever reaches the
+UI**. That's exactly what happened on .100 until 2026-10-30.
+
+ **Keep `bundled`** in `KONG_PLUGINS`, or
 `rate-limiting` and every other stock plugin disappears.
 
 Check the code is loaded (it isn't turned on yet):
@@ -201,7 +213,8 @@ Security UI (Settings > Integrations). With prevention on, blocked requests retu
 ## Updating to a new plugin version
 
 A new version (or a new integration profile) means **new files and a new tag**. The YAML
-entry doesn't change: "no re-association is needed".
+entry doesn't change. A new *version* of the same profile needs nothing else; a new
+*profile* also needs the instance re-created (below).
 
 ```bash
 # 1. fresh zip → replace the WHOLE plugin folder (never merge files)
@@ -217,6 +230,20 @@ cd ~/kong-noname-build && docker build -t kong-noname:3.6-5.0.2 .
 # 4. confirm
 docker exec kong grep NN_VERSION /usr/local/share/lua/5.1/kong/plugins/nonamesecurity/schema.lua
 ```
+
+> **New integration profile ⇒ re-create the instance too.** In DB mode the instance row in
+> Postgres stores the full `config`, copied from the `schema.lua` defaults when it was
+> created. A new zip changes `NN_SOURCE_INDEX` / `NN_SOURCE_KEY`, but the existing instance
+> keeps the **old** values. Check, and if stale delete it and let decK create it again:
+>
+> ```bash
+> curl -s localhost:8001/plugins | python3 -c 'import json,sys; [print(p["id"], p["config"]["NN_SOURCE_INDEX"], p["config"]["NN_SOURCE_KEY"][:8]) for p in json.load(sys.stdin)["data"] if p["name"]=="nonamesecurity"]'
+> grep -E 'NN_SOURCE_INDEX|NN_SOURCE_KEY' <build-dir>/kong/plugins/nonamesecurity/schema.lua   # compare
+> curl -s -X DELETE localhost:8001/plugins/<id>                # if they differ
+> ./kong-config.sh apply                                       # re-creates it from kong.yaml, new defaults
+> ```
+>
+> Same plugin version, new profile? Tag by profile, e.g. `kong-noname:3.6-5.0.1-src4`.
 
 **Roll back the code:** repeat Step 3 with the previous tag (`kong-noname:3.6-5.0.1`).
 Clean up old tags when you no longer need them: `docker rmi kong-noname:<old-tag>`.
@@ -278,6 +305,7 @@ removed.
 | `rate-limiting` disappeared | `bundled` missing from `KONG_PLUGINS` |
 | `permission denied` loading `.lua` files | image built without the `chmod` line. Use the repo's Dockerfile and rebuild |
 | Files in the image are stale | you rebuilt with the same tag and an old container is running, or the folder was merged rather than replaced. Use a new tag, replace the folder |
-| Loads fine, nothing in the UI | YAML entry missing (`./kong-config.sh diff`), or .91 can't reach the engine (Prerequisites `curl`) |
+| Loads fine, nothing in the UI | **Most common:** the container is missing `-e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (Step 3), so engine TLS fails silently. Check `docker exec kong grep lua_ssl_trusted /usr/local/kong/nginx-kong-inject.conf` (must point at `.ca_combined`). Next: the instance still has an old profile's `NN_SOURCE_INDEX`/`KEY` (see *Updating*). Otherwise: YAML entry missing (`./kong-config.sh diff`), or the host can't reach the engine (Prerequisites `curl`) |
+| Testing engine TLS by hand | the image has no `curl`. The `resty` CLI does **not** load Kong's CA setting, so pass it: `docker exec kong resty --http-conf "lua_ssl_trusted_certificate /usr/local/kong/.ca_combined;" -e 'local r,e=require("resty.http").new():request_uri("<NN_ENGINE_URL>",{method="POST",body="[]"}); print(r and r.status or e)'` → `200` |
 | No `[NONAME]` log lines | needs both `NN_DEBUG_ENABLED = true` (rebuilt) and `KONG_LOG_LEVEL=info` |
 | Prevention not blocking | `NN_PREVENTION_ENABLED` is `false`, or no matching rules in the UI. With debug on, look for `[NONAME] Blocking request …` |

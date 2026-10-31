@@ -81,17 +81,25 @@ Postgres and its volume are untouched, so config carries over. Expect a few seco
 downtime.
 
 **Easiest:** use [`kong-recreate-podman.sh`](kong-recreate-podman.sh). It keeps the current
-settings, sets `KONG_PLUGINS=bundled,nonamesecurity`, and **rolls back automatically** if
-Kong doesn't come up:
+settings, sets `KONG_PLUGINS=bundled,nonamesecurity` and
+`KONG_LUA_SSL_TRUSTED_CERTIFICATE=system`, and **rolls back automatically** if Kong doesn't
+come up:
 
 ```bash
 ~/kong_withDB_install_with_noname_integration_ubuntu_docker/rhel-podman/kong-recreate-podman.sh kong-noname:3.6-5.0.1
 ```
 
+**`KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` is required.** Kong has **no** CA bundle for
+Lua-side TLS by default, and the plugin verifies the engine's certificate
+(`NN_SSL_VERIFY = true`). Without this line every batch fails with
+`20: unable to get local issuer certificate` and is dropped **silently** (debug is off by
+default): Kong proxies fine, `nonamesecurity` shows as enabled, and **nothing ever reaches the
+UI**. That's exactly what happened on .100 until 2026-10-30.
+
 By hand, it's the same thing:
 
 ```bash
-PW=$(cat ~/.kong-db-password)
+PW=$(sudo cat /opt/kong/kong-db-password 2>/dev/null || cat ~/.kong-db-password)
 sudo podman rm -f kong
 
 sudo podman run -d --name kong --network kongnet --restart unless-stopped \
@@ -104,6 +112,7 @@ sudo podman run -d --name kong --network kongnet --restart unless-stopped \
   -e KONG_PROXY_LISTEN=0.0.0.0:8000 \
   -e KONG_ADMIN_LISTEN=0.0.0.0:8001 \
   -e KONG_PLUGINS=bundled,nonamesecurity \
+  -e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system \
   kong-noname:3.6-5.0.1
 
 sleep 10
@@ -150,6 +159,9 @@ Then send real traffic and check that it shows up in the API Security UI.
 sudo podman build --format docker -t kong-noname:3.6-5.0.2 ~/kong-noname-build
 ~/kong_withDB_install_with_noname_integration_ubuntu_docker/rhel-podman/kong-recreate-podman.sh kong-noname:3.6-5.0.2
 
+# new integration PROFILE (new source index/key): also re-create the instance, see the
+#   Ubuntu guide's "Updating" box (DELETE /plugins/<id>, then ./kong-config.sh apply)
+
 # roll the code back: the same script with the previous tag
 
 # uninstall: YAML entry out FIRST, then the stock image
@@ -164,6 +176,10 @@ sudo podman run -d --name kong --network kongnet --restart unless-stopped \
   docker.io/library/kong:3.6
 sudo podman rmi $(sudo podman images kong-noname -q); rm -rf ~/kong-noname-build
 ```
+
+Nothing in the UI? Check the CA setting first:
+`sudo podman exec kong grep lua_ssl_trusted /usr/local/kong/nginx-kong-inject.conf` must
+point at `.ca_combined`. More in the Ubuntu guide's *Troubleshooting* (`docker` → `sudo podman`).
 
 Debug logging: `NN_DEBUG_ENABLED = true` in `schema.lua` (rebuild, new tag) **and**
 `-e KONG_LOG_LEVEL=info` in Step 3, then `sudo podman logs -f kong 2>&1 | grep NONAME`.

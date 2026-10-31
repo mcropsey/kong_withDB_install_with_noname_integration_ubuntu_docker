@@ -57,6 +57,8 @@ Noname has tested this plugin on Kong **2.6 – 3.15**; our **3.6.1** is in rang
   - inspection still captures requests that `rate-limiting` would later 429.
 - **Payloads are capped** at **1 MB** each (`NN_MAX_PAYLOAD_SIZE = 1024` KB) — larger
   request/response bodies are not fully inspected.
+- **TLS to the engine is verified** (`NN_SSL_VERIFY = true`) against Kong's Lua CA store,
+  which is empty unless the container sets `KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (Step 2).
 - **Fail-open everywhere.** The handler is `pcall`-wrapped; an error fails open and logs
   `[NONAME] Critical error … failing open`.
 
@@ -126,9 +128,13 @@ of **configuration** (instances, services, routes), not of plugin code. After th
 day-to-day changes never need a recreate (see *Ops*).
 
 ```bash
-# on .104 — recover the DB password from the running container
-PW=$(sudo podman inspect kong --format '{{.Config.Env}}' | tr ',' '\n' \
-      | grep KONG_PG_PASSWORD | tr -d ' "' | cut -d= -f2)
+# on .104 — recover the DB password from the kong-db container
+# (use {{json .Config.Env}}: the plain {{.Config.Env}} form is SPACE-separated, so a
+#  `tr ',' '\n' | grep` pipeline returns the whole env blob and Kong then fails with
+#  "authentication exchange unsuccessful")
+PW=$(sudo podman inspect kong-db --format '{{json .Config.Env}}' \
+      | python3 -c 'import json,sys; print([e.split("=",1)[1] for e in json.load(sys.stdin) if e.startswith("POSTGRES_PASSWORD=")][0])')
+[ -n "$PW" ] && echo "got password (${#PW} chars)" || echo "NO PASSWORD - stop here"
 
 sudo podman rm -f kong
 
@@ -142,6 +148,7 @@ sudo podman run -d --name kong --network kongnet --restart unless-stopped \
   -e KONG_PROXY_LISTEN=0.0.0.0:8000 \
   -e KONG_ADMIN_LISTEN=0.0.0.0:8001 \
   -e KONG_PLUGINS=bundled,nonamesecurity \
+  -e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system \
   -v /opt/kong/plugins/nonamesecurity:/usr/local/share/lua/5.1/kong/plugins/nonamesecurity:ro \
   docker.io/library/kong:3.6
 ```
@@ -153,6 +160,11 @@ Two things to get right:
   `rate-limiting`.
 - **Keep `bundled` in `KONG_PLUGINS`** for the same reason — `bundled,nonamesecurity` gives
   you the stock plugins *plus* Noname.
+- **Set `KONG_LUA_SSL_TRUSTED_CERTIFICATE=system`.** Kong ships with **no** CA bundle for
+  Lua-side TLS. The plugin defaults to `NN_SSL_VERIFY = true`, so without this every batch
+  to the engine fails certificate verification (`20: unable to get local issuer certificate`)
+  and is dropped **silently** (debug logging is off by default). Symptom: Kong proxies
+  fine, `nonamesecurity` is enabled, but **no traffic ever shows in the UI**.
 
 ---
 
@@ -257,7 +269,13 @@ retries, and the config-fetch interval/timeout.
 | Change `KONG_PLUGINS` or the mount | recreate the container (Step 2) | **Yes** |
 
 Update to a new plugin version (a new integration profile generates a new
-`NN_SOURCE_INDEX`/`NN_SOURCE_KEY` — replace the **whole** folder, never merge files):
+`NN_SOURCE_INDEX`/`NN_SOURCE_KEY` — replace the **whole** folder, never merge files).
+
+> **New integration profile ⇒ re-create the instance too.** In DB mode the instance row in
+> Postgres stores the full `config` (schema defaults are copied in at `POST` time), so it
+> keeps the **old** source index/key even after the new `schema.lua` is loaded. Check with
+> `curl -s localhost:8001/plugins | grep -o '"NN_SOURCE_INDEX":[0-9]*'`. If it's stale:
+> `DELETE /plugins/<id>`, restart with the new files, then re-run Step 4.
 
 ```bash
 # Mac: download the new zip, re-run the Step 1 tar pipe to .104
@@ -321,9 +339,10 @@ is **not** removed by uninstalling.
 | Symptom | Fix |
 |---|---|
 | Container exits immediately | `sudo podman logs kong` — usually `plugin 'nonamesecurity' not found` (DB record exists but mount/`KONG_PLUGINS` wrong) or missing files |
+| Kong crash-loops: `authentication exchange unsuccessful` | Wrong `KONG_PG_PASSWORD`, usually from parsing `{{.Config.Env}}` with `tr ','`. Re-derive `PW` with the `{{json .Config.Env}}` command in Step 2 |
 | `plugin 'nonamesecurity' not found` | `sudo podman exec kong ls /usr/local/share/lua/5.1/kong/plugins/nonamesecurity` — if empty, the mount path is wrong |
 | Kong starts but `rate-limiting` is gone | `bundled` dropped from `KONG_PLUGINS`, or you mounted the whole `/opt/kong/plugins` folder |
-| Loads fine, nothing in the UI | Instance missing (`POST /plugins` never ran), or `.104` can't reach the engine: `curl -sS -o /dev/null -w '%{http_code}\n' "https://michaelc-lab.nonamesec.com/engine?structure=base64-payload"` (must match `NN_ENGINE_URL`) |
+| Loads fine, nothing in the UI | **Most common:** missing `-e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system` (Step 2), so engine TLS fails silently. Check `sudo podman exec kong grep lua_ssl_trusted /usr/local/kong/nginx-kong-inject.conf` (must point at `.ca_combined`). Also check that the instance's `NN_SOURCE_INDEX`/`NN_SOURCE_KEY` match the current profile (see *Ops*). Otherwise: instance missing (`POST /plugins` never ran), or `.104` can't reach the engine: `curl -sS -o /dev/null -w '%{http_code}\n' "https://michaelc-lab.nonamesec.com/engine?structure=base64-payload"` (must match `NN_ENGINE_URL`) |
 | No `[NONAME]` log lines | Needs **both** `NN_DEBUG_ENABLED = true` in `schema.lua` **and** `-e KONG_LOG_LEVEL=info` in the container |
 | Prevention not blocking | `NN_PREVENTION_ENABLED` is `false`, or no matching rules in the UI; confirm with `[NONAME] Blocking request …` when debug is on |
 
