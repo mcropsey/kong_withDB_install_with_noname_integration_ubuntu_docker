@@ -55,6 +55,11 @@ SELinux enforcing. (If you ever use the older folder-mount method from
 [`../noname_kong_install.md`](../noname_kong_install.md) here, SELinux enforcing blocks the
 mount unless you add `Z`: `...:ro,Z`.)
 
+> **Note (2026-10-30, later):** [`kong-recreate-podman.sh`](kong-recreate-podman.sh) was
+> tested on .103 (a forced failure that rolled back, then a normal switch). As a result,
+> .103's `kong` container now has `KONG_PLUGINS=bundled` set explicitly. That's the same
+> as Kong's default, so nothing changed functionally. decK diff stayed 0.
+
 ### Containers coming back after a reboot
 
 With Podman, `--restart unless-stopped` only applies after a reboot if

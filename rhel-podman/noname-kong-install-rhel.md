@@ -10,6 +10,11 @@ Read that guide's *How the plugin behaves*, *Updating*, *Rollback* and *Troubles
 sections. They apply here with `docker` → `sudo podman`. This page gives the .103 commands
 in full and the Podman/SELinux differences.
 
+> **In production on .100** since 2026-10-30. That's where this method was actually used:
+> the existing mount-based install was converted to `kong-noname:3.6-5.0.1`. See
+> [`kong-rhel-100.md`](kong-rhel-100.md) for the real run, and for **how to rebuild the
+> image later**.
+>
 > **Status on .103 (2026-10-30): not installed.** The build was tested on .103 with a dummy
 > stand-in plugin (rootful Podman, SELinux **Enforcing**): it built, loaded, was turned on from
 > YAML and ran on proxied traffic. The real install needs the integration-profile zip.
@@ -75,6 +80,16 @@ sudo podman run --rm kong-noname:3.6-5.0.1 ls -l /usr/local/share/lua/5.1/kong/p
 Postgres and its volume are untouched, so config carries over. Expect a few seconds of proxy
 downtime.
 
+**Easiest:** use [`kong-recreate-podman.sh`](kong-recreate-podman.sh). It keeps the current
+settings, sets `KONG_PLUGINS=bundled,nonamesecurity`, and **rolls back automatically** if
+Kong doesn't come up:
+
+```bash
+~/kong_withDB_install_with_noname_integration_ubuntu_docker/rhel-podman/kong-recreate-podman.sh kong-noname:3.6-5.0.1
+```
+
+By hand, it's the same thing:
+
 ```bash
 PW=$(cat ~/.kong-db-password)
 sudo podman rm -f kong
@@ -131,10 +146,11 @@ Then send real traffic and check that it shows up in the API Security UI.
 ## Update / roll back / uninstall (Podman commands)
 
 ```bash
-# new plugin version: replace the folder, then build a NEW tag, then Step 3 with it
+# new plugin version: replace the folder, then build a NEW tag, then switch to it
 sudo podman build --format docker -t kong-noname:3.6-5.0.2 ~/kong-noname-build
+~/kong_withDB_install_with_noname_integration_ubuntu_docker/rhel-podman/kong-recreate-podman.sh kong-noname:3.6-5.0.2
 
-# roll the code back: Step 3 with the previous tag
+# roll the code back: the same script with the previous tag
 
 # uninstall: YAML entry out FIRST, then the stock image
 #   remove "- name: nonamesecurity" from kong.yaml (commit on .98, git pull here), then:
