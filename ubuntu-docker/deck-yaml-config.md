@@ -318,9 +318,11 @@ The dump lists every default value, so copy only the fields you care about into
 
 A custom plugin has **two parts**, and only one of them goes in the YAML:
 
-1. **The code**: Lua files mounted into the container, plus `KONG_PLUGINS=bundled,<name>`.
-   Not YAML. Set when the container is created. See Steps 1–3 of
-   [`noname-kong-install-ubuntu-docker.md`](noname-kong-install-ubuntu-docker.md).
+1. **The code**: the Lua files **built into a custom image** (vendor-recommended, see
+   [`../noname-image/Dockerfile`](../noname-image/Dockerfile)), and the `kong` container
+   run from that image with `KONG_PLUGINS=bundled,<name>`. Not YAML. See Steps 1–3 of
+   [`noname-kong-install-ubuntu-docker.md`](noname-kong-install-ubuntu-docker.md)
+   (RHEL: [`../rhel-podman/noname-kong-install-rhel.md`](../rhel-podman/noname-kong-install-rhel.md)).
 2. **The instance**: the YAML entry. For Noname, instead of the `curl -X POST /plugins` in
    Step 4 of that guide, add it globally:
 
@@ -331,10 +333,16 @@ A custom plugin has **two parts**, and only one of them goes in the YAML:
 
    or under one service's `plugins:` to scope it.
 
-**Order matters:** the code first (recreate the container), then add the YAML entry and
+This matches what worked in DB-less mode, and Noname's own DB-less example: the same
+`KONG_PLUGINS` value and the same `- name: nonamesecurity` entry, with no `config:`.
+
+Plugin **upgrades** only change the image tag (new build, recreate the container). The YAML
+entry stays as it is.
+
+**Order matters:** the code first (recreate the container from the plugin image), then add the YAML entry and
 apply. If you add the entry first, `validate` fails with `No plugin named
 'nonamesecurity'`, which stops the apply, so you can't break Kong this way. To roll back,
-remove the YAML entry and apply **before** recreating the container without the plugin.
+remove the YAML entry and apply **before** recreating the container on the stock `kong:3.6` image.
 
 Once a custom plugin's instance is managed in YAML, don't add or remove it with curl. The
 next apply would undo it.

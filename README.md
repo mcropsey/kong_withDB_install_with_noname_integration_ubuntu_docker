@@ -17,7 +17,8 @@ which targets Rocky Linux (RHEL-family) with rootful Podman. This repo adds:
 Both run Kong 3.6.1 in DB mode (Postgres 16), proxy on `:80` and Admin API on `:8001`,
 with the same 9 services / 9 routes / 9 rate limits. Each gateway has **its own
 `kong.yaml`**, so a change applied on one does not touch the other. The Noname plugin is
-**not installed** on either.
+**not installed** on either. When it is, it'll use Noname's **custom-image** method
+([`noname-image/Dockerfile`](noname-image/Dockerfile)) and be turned on from `kong.yaml`.
 
 ## Changing config (both hosts)
 
@@ -36,12 +37,14 @@ differences: [`rhel-podman/deck-yaml-config-rhel.md`](rhel-podman/deck-yaml-conf
 | Path | Platform | What |
 |---|---|---|
 | [`kong.md`](kong.md) | Rocky + Podman | original base-gateway guide (written for .104, used for .103) |
-| [`noname_kong_install.md`](noname_kong_install.md) | Rocky + Podman | original Noname plugin guide |
+| [`noname_kong_install.md`](noname_kong_install.md) | Rocky + Podman | original Noname plugin guide (folder mount + curl, .104), superseded by the two below |
+| [`noname-image/Dockerfile`](noname-image/Dockerfile) | both | `kong:3.6` + the Noname plugin built in (the vendor's Docker method) |
+| [`rhel-podman/noname-kong-install-rhel.md`](rhel-podman/noname-kong-install-rhel.md) | Rocky + Podman | Noname on .103: build the image, recreate the container, turn it on in `kong.yaml` |
 | [`rhel-podman/kong-rhel-103-deployment.md`](rhel-podman/kong-rhel-103-deployment.md) | Rocky + Podman | what was done on .103 and how it differs from `kong.md` (SELinux kept enforcing, firewalld kept running, `podman-restart.service`) |
 | [`rhel-podman/deck-yaml-config-rhel.md`](rhel-podman/deck-yaml-config-rhel.md) | Rocky + Podman | decK install and YAML workflow on .103 |
 | [`rhel-podman/deck/`](rhel-podman/deck/) | Rocky + Podman | `kong.yaml` for .103 + `kong-config.sh` |
 | [`ubuntu-docker/kong-ubuntu-docker.md`](ubuntu-docker/kong-ubuntu-docker.md) | Ubuntu + Docker | Kong 3.6 + Postgres 16 install, ops |
-| [`ubuntu-docker/noname-kong-install-ubuntu-docker.md`](ubuntu-docker/noname-kong-install-ubuntu-docker.md) | Ubuntu + Docker | Noname `nonamesecurity` v5.0.1 plugin on that gateway |
+| [`ubuntu-docker/noname-kong-install-ubuntu-docker.md`](ubuntu-docker/noname-kong-install-ubuntu-docker.md) | Ubuntu + Docker | Noname on .91: build the image, recreate the container, turn it on in `kong.yaml` |
 | [`ubuntu-docker/deck-yaml-config.md`](ubuntu-docker/deck-yaml-config.md) | any | **decK how-to + cookbook** (shared by both hosts) |
 | [`ubuntu-docker/deck/`](ubuntu-docker/deck/) | Ubuntu + Docker | `kong.yaml` for .91 + `kong-config.sh` |
 | [`ubuntu-docker/configure-kong.sh`](ubuntu-docker/configure-kong.sh) | any | original curl-based Step 8 setup (now replaced by `kong-config.sh apply`) |

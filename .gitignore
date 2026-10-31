@@ -4,3 +4,4 @@ noname-security-kong-policy/
 *.zip
 # local secrets
 .kong-db-password
+kong-noname-build/

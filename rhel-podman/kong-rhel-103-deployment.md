@@ -48,13 +48,12 @@ enforcing. It turned out not to be needed:
   Docker vs. ufw on Ubuntu, this means **firewalld does not protect the Admin API.**
   To restrict it, recreate the `kong` container with `-p 127.0.0.1:8001:8001`.
 
-If you ever add a **host bind mount** (e.g. the Noname plugin's Lua folder in
-[`../noname_kong_install.md`](../noname_kong_install.md) Step 2), SELinux enforcing **will**
-block it unless it's relabeled. Add `Z` to the mount options:
-
-```bash
--v /opt/kong/plugins/nonamesecurity:/usr/local/share/lua/5.1/kong/plugins/nonamesecurity:ro,Z
-```
+**Noname plugin:** install it with the custom-image method in
+[`noname-kong-install-rhel.md`](noname-kong-install-rhel.md). It needs no host mount, so it
+also needs no SELinux change. This was tested on .103 with a dummy stand-in plugin, with
+SELinux enforcing. (If you ever use the older folder-mount method from
+[`../noname_kong_install.md`](../noname_kong_install.md) here, SELinux enforcing blocks the
+mount unless you add `Z`: `...:ro,Z`.)
 
 ### Containers coming back after a reboot
 

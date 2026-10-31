@@ -1,5 +1,14 @@
 # Noname API Security — Kong Plugin Install (192.168.1.104)
 
+> **Superseded for .91 and .103 (2026-10-30).** Those gateways use Noname's
+> custom-image install (the plugin built into a `kong-noname` image, not mounted from
+> `/opt`), with the plugin turned on from decK `kong.yaml`, not with curl. See
+> [`rhel-podman/noname-kong-install-rhel.md`](rhel-podman/noname-kong-install-rhel.md)
+> (Rocky/Podman) and
+> [`ubuntu-docker/noname-kong-install-ubuntu-docker.md`](ubuntu-docker/noname-kong-install-ubuntu-docker.md)
+> (Ubuntu/Docker). This page is the record of the original folder-mount + curl install on
+> .104. Its *How it works* and *Configuration reference* sections still apply everywhere.
+
 Standalone guide for installing the **nonamesecurity** Kong plugin (v5.0.1) onto the
 Kong 3.6.1 gateway running on **192.168.1.104** (Rocky Linux 10.2, rootful Podman,
 **DB mode** — Postgres is the source of truth).
